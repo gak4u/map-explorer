@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Location Log Viewer</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        header {
+            background: #1a1a2e;
+            color: white;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        header h1 {
+            font-size: 1.2rem;
+            font-weight: 500;
+        }
+        .stats {
+            display: flex;
+            gap: 20px;
+            font-size: 0.9rem;
+        }
+        .stat {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .stat-label {
+            color: #888;
+        }
+        .stat-value {
+            color: #4ade80;
+            font-weight: 500;
+        }
+        #map {
+            flex: 1;
+        }
+        .location-popup {
+            min-width: 250px;
+        }
+        .popup-header {
+            font-weight: 600;
+            font-size: 1rem;
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #eee;
+        }
+        .popup-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            font-size: 0.85rem;
+        }
+        .popup-label {
+            color: #666;
+        }
+        .popup-value {
+            font-weight: 500;
+            color: #333;
+        }
+        .time-spent {
+            background: #e8f5e9;
+            color: #2e7d32;
+            padding: 8px;
+            border-radius: 6px;
+            margin-top: 8px;
+            text-align: center;
+            font-weight: 600;
+        }
+        .leaflet-popup-content-wrapper {
+            border-radius: 10px;
+        }
+        .file-input-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        #fileInput {
+            display: none;
+        }
+        .load-btn {
+            background: #4ade80;
+            color: #1a1a2e;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+        .load-btn:hover {
+            background: #22c55e;
+        }
+        .legend {
+            position: absolute;
+            bottom: 30px;
+            right: 10px;
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+            font-size: 0.85rem;
+        }
+        .drop-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(26, 26, 46, 0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+        .drop-overlay.active {
+            display: flex;
+        }
+        .drop-box {
+            border: 3px dashed #4ade80;
+            border-radius: 20px;
+            padding: 60px 80px;
+            text-align: center;
+            color: white;
+        }
+        .drop-box h2 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+        }
+        .drop-box p {
+            color: #888;
+        }
+        .upload-hint {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: #666;
+            z-index: 500;
+        }
+        .upload-hint.hidden {
+            display: none;
+        }
+        .upload-hint h2 {
+            font-size: 1.3rem;
+            margin-bottom: 10px;
+        }
+        .upload-hint p {
+            margin-bottom: 15px;
+        }
+        .upload-hint button {
+            background: #4ade80;
+            color: #1a1a2e;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1rem;
+        }
+        .upload-hint button:hover {
+            background: #22c55e;
+        }
+        .legend-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 4px 0;
+        }
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+        }
+        .arrow-icon {
+            font-size: 20px;
+            color: #3b82f6;
+            text-shadow: 0 0 3px white;
+        }
+        .sequence-number {
+            background: #1a1a2e;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: bold;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .time-box {
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 6px;
+            padding: 8px;
+            margin: 8px 0;
+        }
+        .time-box-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 0;
+        }
+        .time-icon {
+            font-size: 14px;
+        }
+        .time-label {
+            color: #0369a1;
+            font-weight: 500;
+            min-width: 40px;
+        }
+        .time-value {
+            color: #333;
+        }
+        @keyframes dash {
+            to {
+                stroke-dashoffset: -30;
+            }
+        }
+        .animated-path {
+            animation: dash 1s linear infinite;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Location Log Viewer</h1>
+        <div class="stats">
+            <div class="stat">
+                <span class="stat-label">Total Logs:</span>
+                <span class="stat-value" id="totalLogs">0</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Unique Locations:</span>
+                <span class="stat-value" id="uniqueLocations">0</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Time Range:</span>
+                <span class="stat-value" id="timeRange">-</span>
+            </div>
+        </div>
+        <div class="file-input-container">
+            <input type="file" id="fileInput" accept=".jsonl,.json">
+            <button class="load-btn" onclick="document.getElementById('fileInput').click()">Load File</button>
+        </div>
+    </header>
+    <div id="map"></div>
+    <div class="drop-overlay" id="dropOverlay">
+        <div class="drop-box">
+            <h2>Drop your logs.jsonl file here</h2>
+            <p>Release to load location data</p>
+        </div>
+    </div>
+    <div class="upload-hint" id="uploadHint">
+        <h2>Location Log Viewer</h2>
+        <p>Upload your logs.jsonl file to view device locations on the map</p>
+        <button onclick="document.getElementById('fileInput').click()">Select File</button>
+        <p style="margin-top: 15px; font-size: 0.85rem;">or drag & drop anywhere</p>
+    </div>
+    <div class="legend" id="legend" style="display: none;">
+        <div class="legend-title">Time at Location</div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #22c55e;"></div>
+            <span>&lt; 5 minutes</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #eab308;"></div>
+            <span>5 - 30 minutes</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #f97316;"></div>
+            <span>30 min - 1 hour</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #ef4444;"></div>
+            <span>&gt; 1 hour</span>
+        </div>
+        <div style="border-top: 1px solid #eee; margin-top: 8px; padding-top: 8px;">
+            <div class="legend-title">Animation</div>
+            <button id="playPauseBtn" onclick="toggleAnimation()" style="width:100%;padding:6px;border:none;background:#3b82f6;color:white;border-radius:4px;cursor:pointer;">
+                Pause
+            </button>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Initialize map
+        const map = L.map('map').setView([16.5178, 80.6800], 13);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        }).addTo(map);
+
+        let markers = L.layerGroup().addTo(map);
+        let pathLine = null;
+        let arrowMarkers = L.layerGroup().addTo(map);
+        let animatedMarker = null;
+        let animationId = null;
+        let isAnimationPaused = false;
+        let currentPathCoords = null;
+
+        function toggleAnimation() {
+            const btn = document.getElementById('playPauseBtn');
+            isAnimationPaused = !isAnimationPaused;
+            btn.textContent = isAnimationPaused ? 'Play' : 'Pause';
+
+            if (!isAnimationPaused && currentPathCoords && !animationId) {
+                animateMovingDot(currentPathCoords);
+            }
+        }
+
+        // Parse JSONL file
+        function parseJsonl(text) {
+            return text.trim().split('\n').map(line => {
+                try {
+                    return JSON.parse(line);
+                } catch (e) {
+                    console.error('Failed to parse line:', line);
+                    return null;
+                }
+            }).filter(Boolean);
+        }
+
+        // Calculate distance between two coordinates in meters
+        function getDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371e3;
+            const phi1 = lat1 * Math.PI / 180;
+            const phi2 = lat2 * Math.PI / 180;
+            const deltaPhi = (lat2 - lat1) * Math.PI / 180;
+            const deltaLambda = (lon2 - lon1) * Math.PI / 180;
+
+            const a = Math.sin(deltaPhi / 2) ** 2 +
+                      Math.cos(phi1) * Math.cos(phi2) * Math.sin(deltaLambda / 2) ** 2;
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+            return R * c;
+        }
+
+        // Group only consecutive nearby locations (within 50 meters)
+        // If person leaves and comes back, it creates a new group
+        function groupLocations(logs) {
+            const groups = [];
+            const threshold = 50; // meters
+
+            // First, sort logs by timestamp
+            const sortedLogs = [...logs].sort((a, b) =>
+                new Date(a.timestamp) - new Date(b.timestamp)
+            );
+
+            for (const log of sortedLogs) {
+                const loc = log.content?.location;
+                if (!loc || loc.latitude === undefined || loc.longitude === undefined) continue;
+
+                const lat = loc.latitude;
+                const lng = loc.longitude;
+                const timestamp = new Date(log.timestamp);
+
+                // Only check the last group (consecutive grouping)
+                const lastGroup = groups[groups.length - 1];
+
+                if (lastGroup && getDistance(lat, lng, lastGroup.lat, lastGroup.lng) < threshold) {
+                    // Still at the same location, add to current group
+                    lastGroup.logs.push(log);
+                    lastGroup.timestamps.push(timestamp);
+                    // Update average position
+                    lastGroup.lat = (lastGroup.lat * (lastGroup.logs.length - 1) + lat) / lastGroup.logs.length;
+                    lastGroup.lng = (lastGroup.lng * (lastGroup.logs.length - 1) + lng) / lastGroup.logs.length;
+                } else {
+                    // New location or first log, create new group
+                    groups.push({
+                        lat,
+                        lng,
+                        logs: [log],
+                        timestamps: [timestamp]
+                    });
+                }
+            }
+
+            return groups;
+        }
+
+        // Format duration
+        function formatDuration(ms) {
+            const seconds = Math.floor(ms / 1000);
+            const minutes = Math.floor(seconds / 60);
+            const hours = Math.floor(minutes / 60);
+            const days = Math.floor(hours / 24);
+
+            if (days > 0) {
+                return `${days}d ${hours % 24}h ${minutes % 60}m`;
+            } else if (hours > 0) {
+                return `${hours}h ${minutes % 60}m`;
+            } else if (minutes > 0) {
+                return `${minutes}m ${seconds % 60}s`;
+            } else {
+                return `${seconds}s`;
+            }
+        }
+
+        // Get color based on time spent
+        function getColor(durationMs) {
+            const minutes = durationMs / (1000 * 60);
+            if (minutes < 5) return '#22c55e';
+            if (minutes < 30) return '#eab308';
+            if (minutes < 60) return '#f97316';
+            return '#ef4444';
+        }
+
+        // Get marker size based on time spent
+        function getRadius(durationMs) {
+            const minutes = durationMs / (1000 * 60);
+            if (minutes < 5) return 8;
+            if (minutes < 30) return 12;
+            if (minutes < 60) return 16;
+            return 20;
+        }
+
+        // Format time only (without date)
+        function formatTime(date) {
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+
+        // Format date only
+        function formatDate(date) {
+            return date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+        }
+
+        // Create popup content
+        function createPopupContent(group, sequenceNum, totalLocations, visitInfo) {
+            const firstLog = group.logs[0];
+            const device = firstLog.content;
+            const loc = device.location;
+
+            const startTime = new Date(Math.min(...group.timestamps));
+            const endTime = new Date(Math.max(...group.timestamps));
+            const duration = endTime - startTime;
+
+            const batteryPercent = Math.round((device.batteryLevel || 0) * 100);
+
+            const sameDay = startTime.toDateString() === endTime.toDateString();
+
+            const visitLabel = visitInfo ? `<div style="background:#f0f9ff;color:#0369a1;padding:4px 8px;border-radius:4px;font-size:0.8rem;margin-bottom:8px;">
+                Visit ${visitInfo.visitNum} of ${visitInfo.totalVisits} to this area
+            </div>` : '';
+
+            return `
+                <div class="location-popup">
+                    <div class="popup-header">
+                        <span style="background:#1a1a2e;color:white;padding:2px 8px;border-radius:10px;font-size:0.8rem;margin-right:8px;">
+                            Stop ${sequenceNum} of ${totalLocations}
+                        </span>
+                        ${device.deviceDisplayName || device.name || 'Unknown Device'}
+                    </div>
+                    ${visitLabel}
+                    <div class="time-box">
+                        <div class="time-box-row">
+                            <span class="time-icon">&#128339;</span>
+                            <span class="time-label">From:</span>
+                            <span class="time-value">${formatDate(startTime)} ${formatTime(startTime)}</span>
+                        </div>
+                        <div class="time-box-row">
+                            <span class="time-icon">&#128340;</span>
+                            <span class="time-label">To:</span>
+                            <span class="time-value">${sameDay ? '' : formatDate(endTime) + ' '}${formatTime(endTime)}</span>
+                        </div>
+                    </div>
+                    <div class="time-spent">
+                        Duration: ${formatDuration(duration)}
+                    </div>
+                    <div class="popup-row">
+                        <span class="popup-label">Coordinates:</span>
+                        <span class="popup-value">${group.lat.toFixed(6)}, ${group.lng.toFixed(6)}</span>
+                    </div>
+                    <div class="popup-row">
+                        <span class="popup-label">Log Count:</span>
+                        <span class="popup-value">${group.logs.length}</span>
+                    </div>
+                    <div class="popup-row">
+                        <span class="popup-label">Accuracy:</span>
+                        <span class="popup-value">${loc.horizontalAccuracy?.toFixed(1) || 'N/A'}m</span>
+                    </div>
+                    <div class="popup-row">
+                        <span class="popup-label">Battery:</span>
+                        <span class="popup-value">${batteryPercent}% (${device.batteryStatus})</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Find how many times a location was visited
+        function getVisitInfo(groups, currentIndex, threshold = 50) {
+            const current = groups[currentIndex];
+            let visitNum = 0;
+            let totalVisits = 0;
+
+            for (let i = 0; i < groups.length; i++) {
+                const g = groups[i];
+                if (getDistance(current.lat, current.lng, g.lat, g.lng) < threshold) {
+                    totalVisits++;
+                    if (i <= currentIndex) {
+                        visitNum++;
+                    }
+                }
+            }
+
+            if (totalVisits > 1) {
+                return { visitNum, totalVisits };
+            }
+            return null;
+        }
+
+        // Calculate bearing between two points
+        function getBearing(lat1, lng1, lat2, lng2) {
+            const dLng = (lng2 - lng1) * Math.PI / 180;
+            const lat1Rad = lat1 * Math.PI / 180;
+            const lat2Rad = lat2 * Math.PI / 180;
+
+            const x = Math.sin(dLng) * Math.cos(lat2Rad);
+            const y = Math.cos(lat1Rad) * Math.sin(lat2Rad) - Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLng);
+
+            return Math.atan2(x, y) * 180 / Math.PI;
+        }
+
+        // Create arrow icon
+        function createArrowIcon(rotation) {
+            return L.divIcon({
+                html: `<div style="transform: rotate(${rotation - 90}deg); font-size: 16px; color: #3b82f6; text-shadow: 0 0 2px white, 0 0 2px white;">&#10148;</div>`,
+                className: 'arrow-icon-wrapper',
+                iconSize: [20, 20],
+                iconAnchor: [10, 10]
+            });
+        }
+
+        // Create sequence number icon
+        function createSequenceIcon(num) {
+            return L.divIcon({
+                html: `<div class="sequence-number">${num}</div>`,
+                className: '',
+                iconSize: [20, 20],
+                iconAnchor: [10, 10]
+            });
+        }
+
+        // Display locations on map
+        function displayLocations(logs) {
+            markers.clearLayers();
+            arrowMarkers.clearLayers();
+            if (pathLine) {
+                map.removeLayer(pathLine);
+            }
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+            if (animatedMarker) {
+                map.removeLayer(animatedMarker);
+                animatedMarker = null;
+            }
+
+            const groups = groupLocations(logs);
+
+            // Update stats
+            document.getElementById('totalLogs').textContent = logs.length;
+            document.getElementById('uniqueLocations').textContent = groups.length;
+
+            if (logs.length > 0) {
+                const timestamps = logs.map(l => new Date(l.timestamp)).filter(d => !isNaN(d));
+                if (timestamps.length > 0) {
+                    const minTime = new Date(Math.min(...timestamps));
+                    const maxTime = new Date(Math.max(...timestamps));
+                    document.getElementById('timeRange').textContent =
+                        `${minTime.toLocaleDateString()} - ${maxTime.toLocaleDateString()}`;
+                }
+            }
+
+            const bounds = [];
+            const pathCoords = [];
+
+            // Groups are already sorted chronologically from groupLocations()
+
+            const totalLocations = groups.length;
+
+            for (let i = 0; i < groups.length; i++) {
+                const group = groups[i];
+                const startTime = new Date(Math.min(...group.timestamps));
+                const endTime = new Date(Math.max(...group.timestamps));
+                const duration = endTime - startTime;
+
+                const color = getColor(duration);
+                const radius = getRadius(duration);
+
+                // Main circle marker
+                const marker = L.circleMarker([group.lat, group.lng], {
+                    radius: radius,
+                    fillColor: color,
+                    color: '#fff',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.8
+                });
+
+                const visitInfo = getVisitInfo(groups, i);
+                marker.bindPopup(createPopupContent(group, i + 1, totalLocations, visitInfo));
+
+                const tooltipContent = `<strong>#${i + 1}</strong><br>${formatTime(startTime)} - ${formatTime(endTime)}<br>Duration: ${formatDuration(duration)}`;
+                marker.bindTooltip(tooltipContent, {
+                    permanent: false,
+                    direction: 'top'
+                });
+
+                markers.addLayer(marker);
+
+                // Add sequence number marker
+                const seqMarker = L.marker([group.lat, group.lng], {
+                    icon: createSequenceIcon(i + 1),
+                    interactive: false,
+                    zIndexOffset: 1000
+                });
+                arrowMarkers.addLayer(seqMarker);
+
+                bounds.push([group.lat, group.lng]);
+                pathCoords.push({ lat: group.lat, lng: group.lng, time: startTime });
+            }
+
+            // Draw path connecting locations with arrows
+            if (pathCoords.length > 1) {
+                // Draw main path
+                const coords = pathCoords.map(p => [p.lat, p.lng]);
+                pathLine = L.polyline(coords, {
+                    color: '#3b82f6',
+                    weight: 3,
+                    opacity: 0.7
+                }).addTo(map);
+
+                // Add arrow markers along the path
+                for (let i = 0; i < pathCoords.length - 1; i++) {
+                    const start = pathCoords[i];
+                    const end = pathCoords[i + 1];
+
+                    // Calculate midpoint
+                    const midLat = (start.lat + end.lat) / 2;
+                    const midLng = (start.lng + end.lng) / 2;
+
+                    // Calculate bearing (direction)
+                    const bearing = getBearing(start.lat, start.lng, end.lat, end.lng);
+
+                    // Add arrow at midpoint
+                    const arrow = L.marker([midLat, midLng], {
+                        icon: createArrowIcon(bearing),
+                        interactive: false
+                    });
+                    arrowMarkers.addLayer(arrow);
+                }
+
+                // Create animated moving dot
+                animateMovingDot(pathCoords);
+            }
+
+            if (bounds.length > 0) {
+                map.fitBounds(bounds, { padding: [50, 50] });
+                document.getElementById('legend').style.display = 'block';
+            }
+        }
+
+        // Animate a dot moving along the path
+        function animateMovingDot(pathCoords) {
+            if (pathCoords.length < 2) return;
+
+            currentPathCoords = pathCoords;
+
+            const movingIcon = L.divIcon({
+                html: `<div style="width:14px;height:14px;background:#3b82f6;border-radius:50%;border:3px solid white;box-shadow:0 0 15px #3b82f6, 0 0 5px rgba(0,0,0,0.3);"></div>`,
+                className: '',
+                iconSize: [14, 14],
+                iconAnchor: [7, 7]
+            });
+
+            if (!animatedMarker) {
+                animatedMarker = L.marker([pathCoords[0].lat, pathCoords[0].lng], {
+                    icon: movingIcon,
+                    zIndexOffset: 2000
+                }).addTo(map);
+            }
+
+            let segmentIndex = 0;
+            let progress = 0;
+            const speed = 0.008;
+
+            function animate() {
+                if (isAnimationPaused) {
+                    animationId = null;
+                    return;
+                }
+
+                progress += speed;
+
+                if (progress >= 1) {
+                    progress = 0;
+                    segmentIndex++;
+                    if (segmentIndex >= pathCoords.length - 1) {
+                        segmentIndex = 0;
+                    }
+                }
+
+                const currentStart = pathCoords[segmentIndex];
+                const currentEnd = pathCoords[Math.min(segmentIndex + 1, pathCoords.length - 1)];
+
+                const lat = currentStart.lat + (currentEnd.lat - currentStart.lat) * progress;
+                const lng = currentStart.lng + (currentEnd.lng - currentStart.lng) * progress;
+
+                animatedMarker.setLatLng([lat, lng]);
+
+                animationId = requestAnimationFrame(animate);
+            }
+
+            animate();
+        }
+
+        // Handle file loading
+        function loadFile(file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const logs = parseJsonl(event.target.result);
+                displayLocations(logs);
+                document.getElementById('uploadHint').classList.add('hidden');
+            };
+            reader.readAsText(file);
+        }
+
+        // File input handler
+        document.getElementById('fileInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) loadFile(file);
+        });
+
+        // Drag and drop handlers
+        const dropOverlay = document.getElementById('dropOverlay');
+
+        document.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            dropOverlay.classList.add('active');
+        });
+
+        document.addEventListener('dragover', (e) => {
+            e.preventDefault();
+        });
+
+        document.addEventListener('dragleave', (e) => {
+            if (e.relatedTarget === null || !document.body.contains(e.relatedTarget)) {
+                dropOverlay.classList.remove('active');
+            }
+        });
+
+        dropOverlay.addEventListener('dragleave', (e) => {
+            if (e.target === dropOverlay) {
+                dropOverlay.classList.remove('active');
+            }
+        });
+
+        document.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropOverlay.classList.remove('active');
+
+            const file = e.dataTransfer.files[0];
+            if (file && (file.name.endsWith('.jsonl') || file.name.endsWith('.json'))) {
+                loadFile(file);
+            } else {
+                alert('Please drop a .jsonl or .json file');
+            }
+        });
+
+        // Show upload hint on startup
+        document.getElementById('uploadHint').classList.remove('hidden');
+    </script>
+</body>
+</html>
