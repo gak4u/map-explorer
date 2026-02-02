@@ -1,0 +1,15 @@
+# Sensitive files
+QUESTDB_QUERY_GUIDE.md
+
+# Logs
+logs.jsonl
+*.jsonl
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~

@@ -243,6 +243,155 @@
         .animated-path {
             animation: dash 1s linear infinite;
         }
+        /* Server connection styles */
+        .server-panel {
+            position: absolute;
+            top: 70px;
+            left: 10px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+            z-index: 1000;
+            min-width: 280px;
+        }
+        .server-panel.hidden {
+            display: none;
+        }
+        .panel-title {
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .panel-close {
+            background: none;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            color: #666;
+        }
+        .form-group {
+            margin-bottom: 10px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 0.8rem;
+            color: #666;
+            margin-bottom: 4px;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+        .btn-primary {
+            width: 100%;
+            padding: 10px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            margin-top: 5px;
+        }
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+        .btn-primary:disabled {
+            background: #93c5fd;
+            cursor: not-allowed;
+        }
+        .btn-secondary {
+            width: 100%;
+            padding: 10px;
+            background: #e5e7eb;
+            color: #374151;
+            border: none;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            margin-top: 5px;
+        }
+        .btn-secondary:hover {
+            background: #d1d5db;
+        }
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85rem;
+            margin-bottom: 10px;
+            padding: 8px;
+            border-radius: 4px;
+        }
+        .connection-status.connected {
+            background: #dcfce7;
+            color: #166534;
+        }
+        .connection-status.disconnected {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .connection-status.error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+        .status-dot.green { background: #22c55e; }
+        .status-dot.yellow { background: #eab308; }
+        .status-dot.red { background: #ef4444; }
+        .server-btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            margin-right: 10px;
+        }
+        .server-btn:hover {
+            background: #2563eb;
+        }
+        .quick-range-btns {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+        }
+        .quick-range-btn {
+            padding: 4px 8px;
+            background: #f3f4f6;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            cursor: pointer;
+        }
+        .quick-range-btn:hover {
+            background: #e5e7eb;
+        }
+        .quick-range-btn.active {
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+        .divider {
+            border-top: 1px solid #e5e7eb;
+            margin: 12px 0;
+        }
     </style>
 </head>
 <body>
@@ -263,11 +412,78 @@
             </div>
         </div>
         <div class="file-input-container">
+            <button class="server-btn" onclick="toggleServerPanel()">Connect to Server</button>
             <input type="file" id="fileInput" accept=".jsonl,.json">
             <button class="load-btn" onclick="document.getElementById('fileInput').click()">Load File</button>
         </div>
     </header>
     <div id="map"></div>
+
+    <!-- Server Connection Panel -->
+    <div class="server-panel hidden" id="serverPanel">
+        <div class="panel-title">
+            <span>Server Connection</span>
+            <button class="panel-close" onclick="toggleServerPanel()">&times;</button>
+        </div>
+
+        <div id="connectionStatus" class="connection-status disconnected">
+            <div class="status-dot yellow"></div>
+            <span>Not connected</span>
+        </div>
+
+        <!-- Login Form -->
+        <div id="loginForm">
+            <div class="form-group">
+                <label>Server URL</label>
+                <input type="text" id="serverUrl" placeholder="https://questdb.example.com" value="">
+            </div>
+            <div class="form-group">
+                <label>Username</label>
+                <input type="text" id="username" placeholder="Username">
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="password" placeholder="Password">
+            </div>
+            <button class="btn-primary" id="connectBtn" onclick="connectToServer()">Connect</button>
+        </div>
+
+        <!-- Query Form (shown after connection) -->
+        <div id="queryForm" style="display: none;">
+            <div class="form-group">
+                <label>Device</label>
+                <select id="deviceSelect">
+                    <option value="">Loading devices...</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Quick Range</label>
+                <div class="quick-range-btns">
+                    <button class="quick-range-btn" onclick="setQuickRange('1h')">1 Hour</button>
+                    <button class="quick-range-btn" onclick="setQuickRange('6h')">6 Hours</button>
+                    <button class="quick-range-btn" onclick="setQuickRange('24h')">24 Hours</button>
+                    <button class="quick-range-btn" onclick="setQuickRange('7d')">7 Days</button>
+                    <button class="quick-range-btn" onclick="setQuickRange('30d')">30 Days</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Start Date/Time</label>
+                <input type="datetime-local" id="startDateTime">
+            </div>
+            <div class="form-group">
+                <label>End Date/Time</label>
+                <input type="datetime-local" id="endDateTime">
+            </div>
+
+            <button class="btn-primary" id="queryBtn" onclick="queryDeviceData()">Load Location Data</button>
+
+            <div class="divider"></div>
+            <button class="btn-secondary" onclick="disconnect()">Disconnect</button>
+        </div>
+    </div>
+
     <div class="drop-overlay" id="dropOverlay">
         <div class="drop-box">
             <h2>Drop your logs.jsonl file here</h2>
@@ -800,6 +1016,206 @@
 
         // Show upload hint on startup
         document.getElementById('uploadHint').classList.remove('hidden');
+
+        // ============ QuestDB Server Connection ============
+        let serverConfig = {
+            url: '',
+            authHeader: null
+        };
+
+        function toggleServerPanel() {
+            const panel = document.getElementById('serverPanel');
+            panel.classList.toggle('hidden');
+        }
+
+        function updateConnectionStatus(status, message) {
+            const statusEl = document.getElementById('connectionStatus');
+            statusEl.className = 'connection-status ' + status;
+
+            let dotClass = 'yellow';
+            if (status === 'connected') dotClass = 'green';
+            if (status === 'error') dotClass = 'red';
+
+            statusEl.innerHTML = `<div class="status-dot ${dotClass}"></div><span>${message}</span>`;
+        }
+
+        async function queryQuestDB(sql) {
+            const response = await fetch(
+                `${serverConfig.url}/exec?query=${encodeURIComponent(sql)}`,
+                {
+                    headers: {
+                        'Authorization': serverConfig.authHeader
+                    }
+                }
+            );
+
+            if (!response.ok) {
+                const text = await response.text();
+                throw new Error(`Query failed: ${response.status} - ${text}`);
+            }
+
+            return response.json();
+        }
+
+        async function connectToServer() {
+            const url = document.getElementById('serverUrl').value.trim().replace(/\/$/, '');
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            if (!url || !username || !password) {
+                alert('Please fill in all fields');
+                return;
+            }
+
+            const connectBtn = document.getElementById('connectBtn');
+            connectBtn.disabled = true;
+            connectBtn.textContent = 'Connecting...';
+            updateConnectionStatus('disconnected', 'Connecting...');
+
+            try {
+                serverConfig.url = url;
+                serverConfig.authHeader = 'Basic ' + btoa(username + ':' + password);
+
+                // Test connection by fetching tables
+                const result = await queryQuestDB('SHOW TABLES');
+
+                // Populate device dropdown
+                const deviceSelect = document.getElementById('deviceSelect');
+                deviceSelect.innerHTML = result.dataset
+                    .map(row => `<option value="${row[0]}">${row[0]}</option>`)
+                    .join('');
+
+                // Set default date range (last 24 hours)
+                setQuickRange('24h');
+
+                // Show query form, hide login form
+                document.getElementById('loginForm').style.display = 'none';
+                document.getElementById('queryForm').style.display = 'block';
+                updateConnectionStatus('connected', `Connected to ${url}`);
+
+            } catch (e) {
+                console.error('Connection failed:', e);
+                updateConnectionStatus('error', 'Connection failed: ' + e.message);
+                serverConfig.url = '';
+                serverConfig.authHeader = null;
+            } finally {
+                connectBtn.disabled = false;
+                connectBtn.textContent = 'Connect';
+            }
+        }
+
+        function disconnect() {
+            serverConfig.url = '';
+            serverConfig.authHeader = null;
+            document.getElementById('loginForm').style.display = 'block';
+            document.getElementById('queryForm').style.display = 'none';
+            updateConnectionStatus('disconnected', 'Not connected');
+        }
+
+        function setQuickRange(range) {
+            const now = new Date();
+            let start;
+
+            switch (range) {
+                case '1h': start = new Date(now.getTime() - 60 * 60 * 1000); break;
+                case '6h': start = new Date(now.getTime() - 6 * 60 * 60 * 1000); break;
+                case '24h': start = new Date(now.getTime() - 24 * 60 * 60 * 1000); break;
+                case '7d': start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); break;
+                case '30d': start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); break;
+                default: start = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+            }
+
+            document.getElementById('startDateTime').value = formatDateTimeLocal(start);
+            document.getElementById('endDateTime').value = formatDateTimeLocal(now);
+
+            // Update active button
+            document.querySelectorAll('.quick-range-btn').forEach(btn => btn.classList.remove('active'));
+            event.target?.classList.add('active');
+        }
+
+        function formatDateTimeLocal(date) {
+            return new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+                .toISOString()
+                .slice(0, 16);
+        }
+
+        async function queryDeviceData() {
+            const device = document.getElementById('deviceSelect').value;
+            const startTime = new Date(document.getElementById('startDateTime').value).toISOString();
+            const endTime = new Date(document.getElementById('endDateTime').value).toISOString();
+
+            if (!device) {
+                alert('Please select a device');
+                return;
+            }
+
+            const queryBtn = document.getElementById('queryBtn');
+            queryBtn.disabled = true;
+            queryBtn.textContent = 'Loading...';
+
+            try {
+                const sql = `
+                    SELECT * FROM "${device}"
+                    WHERE timestamp >= '${startTime}'
+                      AND timestamp <= '${endTime}'
+                    ORDER BY timestamp ASC
+                `;
+
+                const result = await queryQuestDB(sql);
+
+                if (result.dataset.length === 0) {
+                    alert('No data found for the selected time range');
+                    return;
+                }
+
+                // Convert QuestDB result to log format
+                const logs = convertQuestDBToLogs(result, device);
+                displayLocations(logs);
+                document.getElementById('uploadHint').classList.add('hidden');
+
+            } catch (e) {
+                console.error('Query failed:', e);
+                alert('Query failed: ' + e.message);
+            } finally {
+                queryBtn.disabled = false;
+                queryBtn.textContent = 'Load Location Data';
+            }
+        }
+
+        function convertQuestDBToLogs(result, deviceName) {
+            // Find column indices
+            const columns = {};
+            result.columns.forEach((col, idx) => {
+                columns[col.name.toLowerCase()] = idx;
+            });
+
+            // Map QuestDB rows to log format
+            return result.dataset.map(row => {
+                const timestamp = row[columns['timestamp']] || row[columns['ts']] || new Date().toISOString();
+                const latitude = row[columns['latitude']] || row[columns['lat']] || 0;
+                const longitude = row[columns['longitude']] || row[columns['lng']] || row[columns['lon']] || 0;
+                const accuracy = row[columns['accuracy']] || row[columns['horizontalaccuracy']] || 10;
+                const altitude = row[columns['altitude']] || row[columns['alt']] || 0;
+                const battery = row[columns['battery']] || row[columns['batterylevel']] || 0;
+                const batteryStatus = row[columns['batterystatus']] || 'Unknown';
+
+                return {
+                    timestamp: timestamp,
+                    content: {
+                        name: deviceName,
+                        deviceDisplayName: deviceName,
+                        batteryLevel: battery,
+                        batteryStatus: batteryStatus,
+                        location: {
+                            latitude: latitude,
+                            longitude: longitude,
+                            horizontalAccuracy: accuracy,
+                            altitude: altitude
+                        }
+                    }
+                };
+            });
+        }
     </script>
 </body>
 </html>
