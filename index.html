@@ -433,10 +433,7 @@
 
         <!-- Login Form -->
         <div id="loginForm">
-            <div class="form-group">
-                <label>Server URL</label>
-                <input type="text" id="serverUrl" placeholder="https://questdb.example.com" value="">
-            </div>
+            <input type="hidden" id="serverUrl" value="https://questdb.pathtie.com">
             <div class="form-group">
                 <label>Username</label>
                 <input type="text" id="username" placeholder="Username">
@@ -1091,7 +1088,7 @@
                 // Show query form, hide login form
                 document.getElementById('loginForm').style.display = 'none';
                 document.getElementById('queryForm').style.display = 'block';
-                updateConnectionStatus('connected', `Connected to ${url}`);
+                updateConnectionStatus('connected', 'Connected');
 
             } catch (e) {
                 console.error('Connection failed:', e);
