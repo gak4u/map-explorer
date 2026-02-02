@@ -1182,21 +1182,35 @@
         }
 
         function convertQuestDBToLogs(result, deviceName) {
-            // Find column indices
+            // Find column indices (case-insensitive)
             const columns = {};
             result.columns.forEach((col, idx) => {
                 columns[col.name.toLowerCase()] = idx;
             });
 
+            console.log('QuestDB columns:', result.columns.map(c => c.name));
+            console.log('First row:', result.dataset[0]);
+
+            // Helper to get value from multiple possible column names
+            function getValue(row, ...names) {
+                for (const name of names) {
+                    const idx = columns[name.toLowerCase()];
+                    if (idx !== undefined && row[idx] !== null && row[idx] !== undefined) {
+                        return row[idx];
+                    }
+                }
+                return null;
+            }
+
             // Map QuestDB rows to log format
             return result.dataset.map(row => {
-                const timestamp = row[columns['timestamp']] || row[columns['ts']] || new Date().toISOString();
-                const latitude = row[columns['latitude']] || row[columns['lat']] || 0;
-                const longitude = row[columns['longitude']] || row[columns['lng']] || row[columns['lon']] || 0;
-                const accuracy = row[columns['accuracy']] || row[columns['horizontalaccuracy']] || 10;
-                const altitude = row[columns['altitude']] || row[columns['alt']] || 0;
-                const battery = row[columns['battery']] || row[columns['batterylevel']] || 0;
-                const batteryStatus = row[columns['batterystatus']] || 'Unknown';
+                const timestamp = getValue(row, 'timestamp', 'ts', 'time', 'created_at', 'datetime') || new Date().toISOString();
+                const latitude = getValue(row, 'latitude', 'lat', 'location_latitude') || 0;
+                const longitude = getValue(row, 'longitude', 'lng', 'lon', 'long', 'location_longitude') || 0;
+                const accuracy = getValue(row, 'accuracy', 'horizontalaccuracy', 'horizontal_accuracy', 'location_accuracy') || 10;
+                const altitude = getValue(row, 'altitude', 'alt', 'elevation') || 0;
+                const battery = getValue(row, 'battery', 'batterylevel', 'battery_level') || 0;
+                const batteryStatus = getValue(row, 'batterystatus', 'battery_status') || 'Unknown';
 
                 return {
                     timestamp: timestamp,
@@ -1206,10 +1220,10 @@
                         batteryLevel: battery,
                         batteryStatus: batteryStatus,
                         location: {
-                            latitude: latitude,
-                            longitude: longitude,
-                            horizontalAccuracy: accuracy,
-                            altitude: altitude
+                            latitude: parseFloat(latitude) || 0,
+                            longitude: parseFloat(longitude) || 0,
+                            horizontalAccuracy: parseFloat(accuracy) || 10,
+                            altitude: parseFloat(altitude) || 0
                         }
                     }
                 };
