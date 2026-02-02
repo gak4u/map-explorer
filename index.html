@@ -1188,9 +1188,6 @@
                 columns[col.name.toLowerCase()] = idx;
             });
 
-            console.log('QuestDB columns:', result.columns.map(c => c.name));
-            console.log('First row:', result.dataset[0]);
-
             // Helper to get value from multiple possible column names
             function getValue(row, ...names) {
                 for (const name of names) {
@@ -1204,19 +1201,41 @@
 
             // Map QuestDB rows to log format
             return result.dataset.map(row => {
-                const timestamp = getValue(row, 'timestamp', 'ts', 'time', 'created_at', 'datetime') || new Date().toISOString();
-                const latitude = getValue(row, 'latitude', 'lat', 'location_latitude') || 0;
-                const longitude = getValue(row, 'longitude', 'lng', 'lon', 'long', 'location_longitude') || 0;
-                const accuracy = getValue(row, 'accuracy', 'horizontalaccuracy', 'horizontal_accuracy', 'location_accuracy') || 10;
-                const altitude = getValue(row, 'altitude', 'alt', 'elevation') || 0;
-                const battery = getValue(row, 'battery', 'batterylevel', 'battery_level') || 0;
-                const batteryStatus = getValue(row, 'batterystatus', 'battery_status') || 'Unknown';
+                const timestamp = getValue(row,
+                    'timestamp', 'ts', 'time', 'created_at', 'datetime'
+                ) || new Date().toISOString();
+
+                const latitude = getValue(row,
+                    'content_location_latitude', 'latitude', 'lat', 'location_latitude'
+                ) || 0;
+
+                const longitude = getValue(row,
+                    'content_location_longitude', 'longitude', 'lng', 'lon', 'long', 'location_longitude'
+                ) || 0;
+
+                const accuracy = getValue(row,
+                    'content_location_horizontalaccuracy', 'accuracy', 'horizontalaccuracy', 'horizontal_accuracy'
+                ) || 10;
+
+                const altitude = getValue(row,
+                    'content_location_altitude', 'altitude', 'alt', 'elevation'
+                ) || 0;
+
+                const battery = getValue(row,
+                    'content_batterylevel', 'battery', 'batterylevel', 'battery_level'
+                ) || 0;
+
+                const batteryStatus = getValue(row,
+                    'content_batterystatus', 'batterystatus', 'battery_status'
+                ) || 'Unknown';
+
+                const device = getValue(row, 'device') || deviceName;
 
                 return {
                     timestamp: timestamp,
                     content: {
-                        name: deviceName,
-                        deviceDisplayName: deviceName,
+                        name: device,
+                        deviceDisplayName: device,
                         batteryLevel: battery,
                         batteryStatus: batteryStatus,
                         location: {
