@@ -1014,6 +1014,9 @@
         // Show upload hint on startup
         document.getElementById('uploadHint').classList.remove('hidden');
 
+        // Check for saved login credentials
+        checkSavedCredentials();
+
         // ============ QuestDB Server Connection ============
         let serverConfig = {
             url: '',
@@ -1023,6 +1026,44 @@
         function toggleServerPanel() {
             const panel = document.getElementById('serverPanel');
             panel.classList.toggle('hidden');
+        }
+
+        // Check for saved credentials on page load
+        function checkSavedCredentials() {
+            const saved = localStorage.getItem('questdb_auth');
+            if (saved) {
+                try {
+                    const { url, authHeader } = JSON.parse(saved);
+                    serverConfig.url = url;
+                    serverConfig.authHeader = authHeader;
+                    autoConnect();
+                } catch (e) {
+                    localStorage.removeItem('questdb_auth');
+                }
+            }
+        }
+
+        async function autoConnect() {
+            updateConnectionStatus('disconnected', 'Connecting...');
+            try {
+                const result = await queryQuestDB('SHOW TABLES');
+
+                const deviceSelect = document.getElementById('deviceSelect');
+                deviceSelect.innerHTML = result.dataset
+                    .map(row => `<option value="${row[0]}">${row[0]}</option>`)
+                    .join('');
+
+                setQuickRange('24h');
+                document.getElementById('loginForm').style.display = 'none';
+                document.getElementById('queryForm').style.display = 'block';
+                updateConnectionStatus('connected', 'Connected');
+            } catch (e) {
+                console.error('Auto-connect failed:', e);
+                localStorage.removeItem('questdb_auth');
+                serverConfig.url = '';
+                serverConfig.authHeader = null;
+                updateConnectionStatus('error', 'Session expired');
+            }
         }
 
         function updateConnectionStatus(status, message) {
@@ -1085,6 +1126,12 @@
                 // Set default date range (last 24 hours)
                 setQuickRange('24h');
 
+                // Save credentials to localStorage
+                localStorage.setItem('questdb_auth', JSON.stringify({
+                    url: serverConfig.url,
+                    authHeader: serverConfig.authHeader
+                }));
+
                 // Show query form, hide login form
                 document.getElementById('loginForm').style.display = 'none';
                 document.getElementById('queryForm').style.display = 'block';
@@ -1104,6 +1151,7 @@
         function disconnect() {
             serverConfig.url = '';
             serverConfig.authHeader = null;
+            localStorage.removeItem('questdb_auth');
             document.getElementById('loginForm').style.display = 'block';
             document.getElementById('queryForm').style.display = 'none';
             updateConnectionStatus('disconnected', 'Not connected');
